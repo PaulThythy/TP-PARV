@@ -27,9 +27,6 @@ using namespace std;
 #define NB_BRAS 4
 //****************************************
 
-quat rotationStart(radians(45.f), vec3(1.f, 0.f, 0.f));
-quat rotationEnd(radians(90.f), vec3(0.f, 1.f, 0.f));
-
 char presse;
 int anglex, angley, x, y, xold, yold;
 
@@ -126,10 +123,10 @@ void bras() {
   // a animer par interpolation de matrice
   // cube jaune
   glPushMatrix();
-  mat4 matRotationStart = toMat4(rotationStart);
-  mat4 matRotationEnd = toMat4(rotationEnd);
-  mat4 matLineareInterpol = (1-timePassed)*matRotationStart+timePassed*matRotationEnd;
-  glMultMatrixf(&matLineareInterpol[0][0]);
+  //mat4 matRotationStart = toMat4(rotationStart);
+  //mat4 matRotationEnd = toMat4(rotationEnd);
+  //mat4 matLineareInterpol = (1-timePassed)*matRotationStart+timePassed*matRotationEnd;
+  //glMultMatrixf(&matLineareInterpol[0][0]);
   glColor3f(1, 1, 0);
   glScalef(2, .2, .2);
   glTranslatef(.5, 0., 0.);
