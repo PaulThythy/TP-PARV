@@ -5,10 +5,13 @@
 /********************************************************/
 
 
-#ifdef __APPLE__#include <GLUT/glut.h>
-#else#include <GL/glut.h>   
-#endif#include <cstdlib>
+#ifdef __APPLE__
+  #include <GLUT/glut.h>
+#else 
+  #include <GL/glut.h>   
+#endif 
 
+#include <cstdlib>
 #include <ctime>
 #include <iostream>
 #include <glm/glm.hpp>
@@ -31,8 +34,13 @@ mat4 rotationInterpolMatrice, rotationInterpolQuaternion;
 
 //InterpoLinéaireDeMatrice(t) = (1-t)matStart + tmatEnd
 
+quat rotationStart(radians(45.f), vec3(1.f, 0.f, 0.f));
+quat rotationEnd(radians(90.f), vec3(0.f, 1.f, 0.f));
+
 char presse;
 int anglex, angley, x, y, xold, yold;
+
+float timePassed = 0.0f;
 
 void affichage();
 void clavier(unsigned char touche, int x, int y);
@@ -45,14 +53,23 @@ void anim(int NumTimer);
 
 void anim(int NumTimer) {
   using namespace std::chrono;
-  static int i = 0;
   static time_point < system_clock > refTime = system_clock::now();
 
   time_point < system_clock > currentTime = system_clock::now(); // This and "end"'s type is std::chrono::time_point
 
   duration < double > deltaTime = currentTime - refTime;
 
+  cout << "deltaTime : " << deltaTime.count() << endl;
+
+  if (timePassed + deltaTime.count() >= 1.0f) {
+    timePassed = 0.0f;
+  } else {
+    timePassed += deltaTime.count(); 
+  }
+
   int delatTemps = duration_cast < milliseconds > (deltaTime).count();
+
+  refTime = currentTime;
 
   glutPostRedisplay();
   glutTimerFunc(100, anim, 1);
@@ -88,18 +105,38 @@ int main(int argc, char ** argv) {
 
 void bras() {
 
-  // a animer pas interpolation de quaternions
+  // a animer par interpolation de quaternions
+  // cube rouge
   glPushMatrix();
-  //glMultMatrixf(&rotationInterpolQuaternion[0][0]);
+  //quat quat = lerp(rotationStart, rotationEnd, timePassed);
+  //TODO ou faire avec la formule de l'interpolation linéaire, penser à normaliser le quaternion
+  //mat4 rotationMatrix = toMat4(quat);
+  //glMultMatrixf(&rotationMatrix[0][0]);
   glColor3f(1, 0, 0);
   glScalef(2, .2, .2);
   glTranslatef(.5, 0., 0.);
   glutSolidCube(1.);
   glPopMatrix();
 
-  // a animer par interpolation de matrice
+  // a animer par interpolation de quaternions
+  // cube bleu
   glPushMatrix();
-  //glMultMatrixf(&rotationInterpolMatrice[0][0]);
+  //quat otherQuat = mix(rotationStart, rotationEnd, timePassed);
+  //mat4 otherRotationMatrix = toMat4(otherQuat);
+  //glMultMatrixf(&otherRotationMatrix[0][0]);
+  glColor3f(0, 0, 1);
+  glScalef(2, .2, .2);
+  glTranslatef(.5, 0., 0.);
+  glutSolidCube(1.);
+  glPopMatrix();
+
+  // a animer par interpolation de matrice
+  // cube jaune
+  glPushMatrix();
+  mat4 matRotationStart = toMat4(rotationStart);
+  mat4 matRotationEnd = toMat4(rotationEnd);
+  mat4 matLineareInterpol = (1-timePassed)*matRotationStart+timePassed*matRotationEnd;
+  glMultMatrixf(&matLineareInterpol[0][0]);
   glColor3f(1, 1, 0);
   glScalef(2, .2, .2);
   glTranslatef(.5, 0., 0.);
