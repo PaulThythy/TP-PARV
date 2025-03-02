@@ -65,7 +65,7 @@ void anim(int NumTimer) {
   refTime = currentTime;
 
   glutPostRedisplay();
-  glutTimerFunc(100, anim, 1);
+  glutTimerFunc(10, anim, 1);
 
 }
 
@@ -74,7 +74,7 @@ int main(int argc, char ** argv) {
   glutInitDisplayMode(GLUT_RGB | GLUT_DOUBLE | GLUT_DEPTH);
   glutInitWindowPosition(200, 200);
   glutInitWindowSize(1500, 1500);
-  glutCreateWindow("cube");
+  glutCreateWindow("Cinématique directe");
 
   glClearColor(0.0, 0.0, 0.0, 0.0);
   glColor3f(1.0, 1.0, 1.0);
@@ -101,10 +101,9 @@ void bras() {
   // a animer par interpolation de quaternions
   // cube rouge
   glPushMatrix();
-  //quat quat = lerp(rotationStart, rotationEnd, timePassed);
-  //TODO ou faire avec la formule de l'interpolation linéaire, penser à normaliser le quaternion
-  //mat4 rotationMatrix = toMat4(quat);
-  //glMultMatrixf(&rotationMatrix[0][0]);
+  quat quatLerp = normalize(lerp(rotationStart, rotationEnd, timePassed));
+  mat4 rotationMatrixLerp = toMat4(quatLerp);
+  glMultMatrixf(&rotationMatrixLerp[0][0]);
   glColor3f(1, 0, 0);
   glScalef(2, .2, .2);
   glTranslatef(.5, 0., 0.);
@@ -114,9 +113,9 @@ void bras() {
   // a animer par interpolation de quaternions
   // cube bleu
   glPushMatrix();
-  //quat otherQuat = mix(rotationStart, rotationEnd, timePassed);
-  //mat4 otherRotationMatrix = toMat4(otherQuat);
-  //glMultMatrixf(&otherRotationMatrix[0][0]);
+  quat quatSlerp = slerp(rotationStart, rotationEnd, timePassed);
+  mat4 rotationMatrixSlerp = toMat4(quatSlerp);
+  glMultMatrixf(&rotationMatrixSlerp[0][0]);
   glColor3f(0, 0, 1);
   glScalef(2, .2, .2);
   glTranslatef(.5, 0., 0.);
