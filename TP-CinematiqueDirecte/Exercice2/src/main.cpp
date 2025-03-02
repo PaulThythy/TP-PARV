@@ -32,6 +32,16 @@ int anglex, angley, x, y, xold, yold;
 
 float timePassed = 0.0f;
 
+// Variables globales pour les rotations et les longueurs
+float angleBase = 0.0f;    // Angle du segment de base (cube rouge)
+float angleCoude = 0.0f;   // Angle pour le coude (cube vert)
+float anglePoignet = 0.0f; // Angle pour le poignet (cube bleu)
+
+float longueurBase = 1.0f;
+float longueurCoude = 2.0f;
+float longueurPoignet = 1.0f;
+
+
 void affichage();
 void clavier(unsigned char touche, int x, int y);
 void reshape(int x, int y);
@@ -71,7 +81,7 @@ int main(int argc, char ** argv) {
   glutInitDisplayMode(GLUT_RGB | GLUT_DOUBLE | GLUT_DEPTH);
   glutInitWindowPosition(200, 200);
   glutInitWindowSize(1500, 1500);
-  glutCreateWindow("cube");
+  glutCreateWindow("Cinématique directe");
 
   glClearColor(0.0, 0.0, 0.0, 0.0);
   glColor3f(1.0, 1.0, 1.0);
@@ -94,47 +104,52 @@ int main(int argc, char ** argv) {
 }
 
 void bras() {
-
-  // a animer par interpolation de quaternions
-  // cube rouge
-  glPushMatrix();
-  //quat quat = lerp(rotationStart, rotationEnd, timePassed);
-  //TODO ou faire avec la formule de l'interpolation linéaire, penser à normaliser le quaternion
-  //mat4 rotationMatrix = toMat4(quat);
-  //glMultMatrixf(&rotationMatrix[0][0]);
-  glColor3f(1, 0, 0);
-  glScalef(2, .2, .2);
-  glTranslatef(.5, 0., 0.);
-  glutSolidCube(1.);
-  glPopMatrix();
-
-  // a animer par interpolation de quaternions
-  // cube bleu
-  glPushMatrix();
-  //quat otherQuat = mix(rotationStart, rotationEnd, timePassed);
-  //mat4 otherRotationMatrix = toMat4(otherQuat);
-  //glMultMatrixf(&otherRotationMatrix[0][0]);
-  glColor3f(0, 0, 1);
-  glScalef(2, .2, .2);
-  glTranslatef(.5, 0., 0.);
-  glutSolidCube(1.);
-  glPopMatrix();
-
-  // a animer par interpolation de matrice
-  // cube jaune
-  glPushMatrix();
-  //mat4 matRotationStart = toMat4(rotationStart);
-  //mat4 matRotationEnd = toMat4(rotationEnd);
-  //mat4 matLineareInterpol = (1-timePassed)*matRotationStart+timePassed*matRotationEnd;
-  //glMultMatrixf(&matLineareInterpol[0][0]);
-  glColor3f(1, 1, 0);
-  glScalef(2, .2, .2);
-  glTranslatef(.5, 0., 0.);
-  glutSolidCube(1.);
-  glPopMatrix();
-
-  glPopMatrix();
+    glPushMatrix();
+    // --------------------------
+    // Segment de base (cube rouge)
+    // --------------------------
+    // Rotation par rapport à un axe (ici l'axe z par exemple)
+    glRotatef(angleBase, 0.0f, 0.0f, 1.0f);
+    glPushMatrix();
+      glColor3f(1.0f, 0.0f, 0.0f);
+      // Mise à l'échelle pour obtenir la bonne longueur
+      glScalef(longueurBase, 0.2f, 0.2f);
+      // Déplacement pour dessiner le cube centré sur le segment
+      glTranslatef(0.5f, 0.0f, 0.0f);
+      glutSolidCube(1.0);
+    glPopMatrix();
+    
+    // Se déplacer à l'extrémité du segment de base
+    glTranslatef(longueurBase, 0.0f, 0.0f);
+    
+    // --------------------------
+    // Segment du coude (cube vert)
+    // --------------------------
+    glRotatef(angleCoude, 0.0f, 0.0f, 1.0f);
+    glPushMatrix();
+      glColor3f(0.0f, 1.0f, 0.0f);
+      glScalef(longueurCoude, 0.2f, 0.2f);
+      glTranslatef(0.5f, 0.0f, 0.0f);
+      glutSolidCube(1.0);
+    glPopMatrix();
+    
+    // Se déplacer à l'extrémité du coude
+    glTranslatef(longueurCoude, 0.0f, 0.0f);
+    
+    // --------------------------
+    // Segment du poignet (cube bleu)
+    // --------------------------
+    glRotatef(anglePoignet, 0.0f, 0.0f, 1.0f);
+    glPushMatrix();
+      glColor3f(0.0f, 0.0f, 1.0f);
+      glScalef(longueurPoignet, 0.2f, 0.2f);
+      glTranslatef(0.5f, 0.0f, 0.0f);
+      glutSolidCube(1.0);
+    glPopMatrix();
+    
+    glPopMatrix();
 }
+
 
 void affichage() {
   int i, j;
@@ -174,51 +189,56 @@ void affichage() {
 }
 
 void clavier(unsigned char touche, int x, int y) {
-  switch (touche) {
-  case '1':
-    //orientation[0]+=.5;
-    //glutPostRedisplay();
-    break;
-    case '&':
-    //orientation[0]-=.5;
-    //glutPostRedisplay();
-    break;
-  case '2':
-    //orientation[1]+=.5;
-    //glutPostRedisplay();
-    break;
-    case 'é':
-    //orientation[1]+=.5;
-    //glutPostRedisplay();
-    break;
-
-  case 'p':
-    /* affichage du carre plein */
-    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-    glutPostRedisplay();
-    break;
-  case 'f':
-    /* affichage en mode fil de fer */
-    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-    glutPostRedisplay();
-    break;
-  case 's':
-    /* Affichage en mode sommets seuls */
-    glPolygonMode(GL_FRONT_AND_BACK, GL_POINT);
-    glutPostRedisplay();
-    break;
-  case 'd':
-    glEnable(GL_DEPTH_TEST);
-    glutPostRedisplay();
-    break;
-  case 'D':
-    glDisable(GL_DEPTH_TEST);
-    glutPostRedisplay();
-    break;
-  case 'q':
-    exit(0);
+  switch(touche) {
+    // Modifier l'angle de la base avec 'a' et 'z'
+    case 'a':
+      angleBase += 5.0f;
+      break;
+    case 'A':
+      angleBase -= 5.0f;
+      break;
+      
+    // Modifier l'angle du coude avec 's' et 'x'
+    case 's':
+      angleCoude += 5.0f;
+      break;
+    case 'S':
+      angleCoude -= 5.0f;
+      break;
+      
+    // Modifier l'angle du poignet avec 'd' et 'c'
+    case 'd':
+      anglePoignet += 5.0f;
+      break;
+    case 'D':
+      anglePoignet -= 5.0f;
+      break;
+      
+    case 'q':
+      exit(0);
+      break;
+      
+    // Autres commandes (affichage, mode fil de fer, etc.)
+    case 'p':
+      glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+      break;
+    case 'f':
+      glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+      break;
+    case 'u':
+      glPolygonMode(GL_FRONT_AND_BACK, GL_POINT);
+      break;
+    case 'x':
+      glEnable(GL_DEPTH_TEST);
+      break;
+    case 'X':
+      glDisable(GL_DEPTH_TEST);
+      break;
   }
+  glutPostRedisplay();
 }
+
+
 
 void reshape(int x, int y) {
   if (x < y)
