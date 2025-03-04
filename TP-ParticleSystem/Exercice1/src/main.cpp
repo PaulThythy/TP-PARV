@@ -40,6 +40,19 @@ typedef struct
 
 vector<Particule> listeParticules;
 
+typedef struct
+{
+  GLfloat position;   //position
+  const float V0;           //initial speed
+
+  typedef struct
+  {
+    const float cubeMinX, cubeMaxX;
+    const float cubeMinY, cubeMaxY;
+    const float cubeMinZ, cubeMaxZ;
+  } ParticlesContainer;
+} Emitter;
+
 void anim(int NumTimer);
 
 // initialisations
