@@ -35,15 +35,18 @@ typedef struct
   GLfloat position[3];
   GLfloat vitesse[3];
   GLfloat masse;
+  GLfloat radius;
   GLfloat couleur[3];
 } Particule;
 
+GLuint locationRadiusParticule;
+
 vector<Particule> listeParticules;
 
-typedef struct
+/*typedef struct
 {
   GLfloat position;   //position
-  const float V0;           //initial speed
+  const float V0;     //initial speed
 
   typedef struct
   {
@@ -51,7 +54,7 @@ typedef struct
     const float cubeMinY, cubeMaxY;
     const float cubeMinZ, cubeMaxZ;
   } ParticlesContainer;
-} Emitter;
+} Emitter;*/
 
 void anim(int NumTimer);
 
@@ -82,7 +85,6 @@ float cameraAngleY;
 float cameraDistance = 1.;
 
 // constantes pour la simulation
-const float m = 0.01f;
 vec3 gravity = vec3(0.0f, 0.0f, -9.91f);
 const float Cx = 0.5f;      // coefficient de résistance aérodynamique (exemple)
 const float rho = 1.2f;     // masse volumique de l'air en kg/m³ (environ)
@@ -101,7 +103,7 @@ GLuint VBO_sommets, VBO_normales, VBO_indices, VBO_UVtext, VAO;
 
 // location des VBO
 //------------------
-GLuint indexVertex = 0, indexUVTexture = 2, indexNormale = 3, indexVitesse = 4, indexCouleur = 5;
+GLuint indexVertex = 0, indexUVTexture = 2, indexNormale = 3, indexVitesse = 4, indexCouleur = 5, indexRayon = 6;
 
 // variable pour paramétrage eclairage
 //--------------------------------------
@@ -161,7 +163,8 @@ void emitParticules(int nbParticules)
     p.vitesse[1] = vy;
     p.vitesse[2] = vz;
     
-    p.masse = m;
+    p.masse = 0.01f;
+    p.radius = 0.05f;
     
     // Attribution d'une couleur aléatoire
     p.couleur[0] = (float)rand() / (float)RAND_MAX;
@@ -180,7 +183,8 @@ void initOpenGL(void)
   glEnable(GL_CULL_FACE); // on active l'élimination des faces qui par défaut n'est pas active
   glEnable(GL_DEPTH_TEST);
   // le shader
-  programID = LoadShaders("shaders/vertex.vert", "shaders/fragment.frag");
+  programID = LoadShaders("shaders/vertex.vert", "shaders/fragment.frag", "shaders/geometry.geom");
+
   glEnable(GL_PROGRAM_POINT_SIZE);
   //  glPointSize(30.);
   glEnable(GL_BLEND);
@@ -214,7 +218,7 @@ void anim(int NumTimer)
 
   const float restitution = 0.8f;
 
-  emitParticules(10);
+  emitParticules(5);
 
   for(size_t i = 0;i < listeParticules.size();i++) {
     vec3 velocity(listeParticules[i].vitesse[0],
@@ -352,6 +356,7 @@ void genereVBO()
   glEnableVertexAttribArray(indexVertex);
   glEnableVertexAttribArray(indexVitesse);
   glEnableVertexAttribArray(indexCouleur);
+  glEnableVertexAttribArray(indexRayon);
 
   glBindVertexArray(VAO); // ici on bind le VAO , c'est lui qui recupèrera les configurations des VBO glVertexAttribPointer , glEnableVertexAttribArray...
   glBindBuffer(GL_ARRAY_BUFFER, VBO_sommets);
@@ -359,6 +364,7 @@ void genereVBO()
   glVertexAttribPointer(indexVertex, 3, GL_FLOAT, GL_FALSE, sizeof(Particule), reinterpret_cast<void *>(offsetof(Particule, position)));
   glVertexAttribPointer(indexVitesse, 3, GL_FLOAT, GL_FALSE, sizeof(Particule), reinterpret_cast<void *>(offsetof(Particule, vitesse)));
   glVertexAttribPointer(indexCouleur, 3, GL_FLOAT, GL_FALSE, sizeof(Particule), reinterpret_cast<void *>(offsetof(Particule, couleur)));
+  glVertexAttribPointer(indexRayon, 3, GL_FLOAT, GL_FALSE, sizeof(Particule), reinterpret_cast<void *>(offsetof(Particule, radius)));
 
   // une fois la config terminée
   // on désactive le dernier VBO et le VAO pour qu'ils ne soit pas accidentellement modifié
