@@ -23,7 +23,7 @@ int longitudes = 5;
 
 void main() {
     vec3 centerLocal = vPosition[0];
-    float radius = 1.0;
+    float radius = vRadius[0];
 
     for (int i = 0; i < latitudes; i++) {
         float theta1 = float(i) / float(latitudes) * PI;

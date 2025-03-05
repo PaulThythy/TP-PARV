@@ -30,14 +30,26 @@
 using namespace glm;
 using namespace std;
 
-typedef struct
+struct alignas(16) Particule
 {
-  GLfloat position[3];
-  GLfloat vitesse[3];
-  GLfloat masse;
-  GLfloat radius;
-  GLfloat couleur[3];
-} Particule;
+  // position[3], complétés par 1 float de padding pour faire 16 octets
+  float position[3];
+  float pad0; // complète 3×4 = 12 octets + 4 = 16
+
+  // vitesse[3] + 1 float de padding pour arriver à 16
+  float vitesse[3];
+  float pad1; // complète 12 octets + 4 = 16
+
+  // masse + radius = 8 octets,
+  // on rajoute pad2[2] pour aligner le champ suivant sur 16
+  float masse;
+  float radius;
+  float pad2[2]; // 8 octets de padding -> total 16
+
+  // couleur[3] + pad3 = 16 octets
+  float couleur[3];
+  float pad3; // 12 + 4 = 16
+};
 
 vector<Particule> listeParticules;
 
@@ -107,7 +119,7 @@ GLuint ssboParticles;
 
 // variable pour paramétrage eclairage
 //--------------------------------------
-vec3 cameraPosition(10., 0., 0.);
+vec3 cameraPosition(2., 0., 0.);
 // le matériau
 //---------------
 GLfloat materialShininess = 3.;
@@ -175,7 +187,7 @@ void initOpenGL(void)
   glEnable(GL_CULL_FACE); // on active l'élimination des faces qui par défaut n'est pas active
   glEnable(GL_DEPTH_TEST);
   // le shader
-  programID = LoadShaders("shaders/vertex.vert", "shaders/fragment.frag");
+  programID = LoadShaders("shaders/vertex.vert", "shaders/fragment.frag", "shaders/geometry.geom");
 
   glEnable(GL_PROGRAM_POINT_SIZE);
   glPointSize(1);
@@ -203,7 +215,7 @@ void anim(int NumTimer)
     float dt = static_cast<float>(deltaTime.count());
     const float restitution = 0.8f;
 
-    emitParticules(100);
+    emitParticules(1);
 
     // Mettez à jour la physique de chaque particule
     for (size_t i = 0; i < listeParticules.size(); i++)
