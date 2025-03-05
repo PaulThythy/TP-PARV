@@ -43,18 +43,25 @@ GLuint locationRadiusParticule;
 
 vector<Particule> listeParticules;
 
-/*typedef struct
+typedef struct
 {
-  GLfloat position;   //position
-  const float V0;     //initial speed
+  const vec3 position; // position
+  const float V0;      // initial speed
+} Emitter;
 
-  typedef struct
-  {
-    const float cubeMinX, cubeMaxX;
-    const float cubeMinY, cubeMaxY;
-    const float cubeMinZ, cubeMaxZ;
-  } ParticlesContainer;
-} Emitter;*/
+Emitter emitter = {vec3(0.0f, 0.0f, 1.0f), 3.0f};
+
+typedef struct
+{
+  const float cubeMinX, cubeMaxX;
+  const float cubeMinY, cubeMaxY;
+  const float cubeMinZ, cubeMaxZ;
+} ParticlesContainer;
+
+ParticlesContainer particulesContainer = {
+    -1.0f, 1.0f,
+    -1.0f, 1.0f,
+    0.0f, 2.0f};
 
 void anim(int NumTimer);
 
@@ -86,14 +93,11 @@ float cameraDistance = 1.;
 
 // constantes pour la simulation
 vec3 gravity = vec3(0.0f, 0.0f, -9.91f);
-const float Cx = 0.5f;      // coefficient de résistance aérodynamique (exemple)
-const float rho = 1.2f;     // masse volumique de l'air en kg/m³ (environ)
-const float S = 0.01f;      // section droite en m² (exemple)
+const float Cx = 0.5f;  // coefficient de résistance aérodynamique (exemple)
+const float rho = 1.2f; // masse volumique de l'air en kg/m³ (environ)
+const float S = 0.01f;  // section droite en m² (exemple)
 
-const float emitterCubeSide = 0.1f;  // côté du cube émetteur
-const float halfCube = emitterCubeSide / 2.0f;
-const float alpha = glm::radians(15.0f);  // déviation max de ±15° (en radians)
-const float v0 = 3.0f;   // vitesse initiale (en m/s)
+const float alpha = glm::radians(15.0f); // déviation max de ±15° (en radians)
 
 // variables Handle d'opengl
 //--------------------------
@@ -133,44 +137,41 @@ GLuint locationTexture, locationNormalMap;
 //-------------------------
 void emitParticules(int nbParticules)
 {
-  vec3 emitterCenter(0.0f, 0.0f, 1.0f);
-
   for (int i = 0; i < nbParticules; i++)
   {
     Particule p;
 
-    float rx = ((float)rand() / (float)RAND_MAX) * emitterCubeSide - halfCube;
-    float ry = ((float)rand() / (float)RAND_MAX) * emitterCubeSide - halfCube;
-    float rz = ((float)rand() / (float)RAND_MAX) * emitterCubeSide - halfCube;
+    // Génération d'un offset aléatoire dans l'intervalle [-0.05, 0.05] pour chaque coordonnée
+    float rx = ((float)rand() / (float)RAND_MAX) * 0.1f - 0.05f;
+    float ry = ((float)rand() / (float)RAND_MAX) * 0.1f - 0.05f;
+    float rz = ((float)rand() / (float)RAND_MAX) * 0.1f - 0.05f;
 
-    vec3 pos = emitterCenter + vec3(rx, ry, rz);
+    // La position initiale est l'addition de la position de l'émetteur et de l'offset
+    vec3 pos = emitter.position + vec3(rx, ry, rz);
     p.position[0] = pos.x;
     p.position[1] = pos.y;
     p.position[2] = pos.z;
 
     // Calcul de la vitesse initiale
-    // Pour obtenir une direction quasi verticale, on souhaite que l'angle entre la vitesse et l'axe z soit dans [0, alpha].
-    // On génère d'abord u uniformément dans [cos(alpha), 1] puis on calcule theta = arccos(u).
+    // On souhaite que l'angle entre la vitesse et l'axe z soit dans [0, alpha]
     float u = ((float)rand() / (float)RAND_MAX) * (1.0f - cos(alpha)) + cos(alpha);
     float theta = acos(u);
-    // Phi est tiré uniformément dans [0, 2*pi]
     float phi = ((float)rand() / (float)RAND_MAX) * 2.0f * M_PI;
-    // Conversion de coordonnées sphériques en cartésiennes (axe z vertical)
-    float vx = v0 * sin(theta) * cos(phi);
-    float vy = v0 * sin(theta) * sin(phi);
-    float vz = v0 * cos(theta);
+    float vx = emitter.V0 * sin(theta) * cos(phi);
+    float vy = emitter.V0 * sin(theta) * sin(phi);
+    float vz = emitter.V0 * cos(theta);
     p.vitesse[0] = vx;
     p.vitesse[1] = vy;
     p.vitesse[2] = vz;
-    
+
     p.masse = 0.01f;
-    p.radius = 0.05f;
-    
+    p.radius = 0.009f; // Ajustez cette valeur selon vos besoins
+
     // Attribution d'une couleur aléatoire
     p.couleur[0] = (float)rand() / (float)RAND_MAX;
     p.couleur[1] = (float)rand() / (float)RAND_MAX;
     p.couleur[2] = (float)rand() / (float)RAND_MAX;
-    
+
     listeParticules.push_back(p);
   }
 }
@@ -220,7 +221,8 @@ void anim(int NumTimer)
 
   emitParticules(5);
 
-  for(size_t i = 0;i < listeParticules.size();i++) {
+  for (size_t i = 0; i < listeParticules.size(); i++)
+  {
     vec3 velocity(listeParticules[i].vitesse[0],
                   listeParticules[i].vitesse[1],
                   listeParticules[i].vitesse[2]);
@@ -232,7 +234,8 @@ void anim(int NumTimer)
 
     float speed = length(velocity);
     vec3 F_drag(0.0f);
-    if (speed > 0.0f) {
+    if (speed > 0.0f)
+    {
       F_drag = -0.5f * Cx * rho * S * speed * speed * normalize(velocity);
     }
 
@@ -248,30 +251,41 @@ void anim(int NumTimer)
     // Mise à jour de la position
     pos += velocity * dt;
 
-    // Définition des bornes du cube
-    const float cubeMinX = -1.0f, cubeMaxX = 1.0f;
-    const float cubeMinY = -1.0f, cubeMaxY = 1.0f;
-    const float cubeMinZ = 0.0f,  cubeMaxZ = 2.0f;
+    float cubeMinX = particulesContainer.cubeMinX;
+    float cubeMaxX = particulesContainer.cubeMaxX;
+    float cubeMinY = particulesContainer.cubeMinY;
+    float cubeMaxY = particulesContainer.cubeMaxY;
+    float cubeMinZ = particulesContainer.cubeMinZ;
+    float cubeMaxZ = particulesContainer.cubeMaxZ;
 
     // Rebond sur les parois du cube
-    if (pos.x < cubeMinX) {
+    if (pos.x < cubeMinX)
+    {
       pos.x = cubeMinX;
       velocity.x = -velocity.x * restitution;
-    } else if (pos.x > cubeMaxX) {
+    }
+    else if (pos.x > cubeMaxX)
+    {
       pos.x = cubeMaxX;
       velocity.x = -velocity.x * restitution;
     }
-    if (pos.y < cubeMinY) {
+    if (pos.y < cubeMinY)
+    {
       pos.y = cubeMinY;
       velocity.y = -velocity.y * restitution;
-    } else if (pos.y > cubeMaxY) {
+    }
+    else if (pos.y > cubeMaxY)
+    {
       pos.y = cubeMaxY;
       velocity.y = -velocity.y * restitution;
     }
-    if (pos.z < cubeMinZ) {
+    if (pos.z < cubeMinZ)
+    {
       pos.z = cubeMinZ;
       velocity.z = -velocity.z * restitution;
-    } else if (pos.z > cubeMaxZ) {
+    }
+    else if (pos.z > cubeMaxZ)
+    {
       pos.z = cubeMaxZ;
       velocity.z = -velocity.z * restitution;
     }
