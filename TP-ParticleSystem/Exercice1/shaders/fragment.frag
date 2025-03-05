@@ -2,7 +2,7 @@
 
 in vec2 gs_texCoord;
 in vec3 gs_normal;
-in vec3 gs_couleur;
+in vec3 vCouleur;
 
 uniform mat4 MODEL;
 
@@ -17,5 +17,5 @@ out vec4 finalColor;
 
 void main() {
     // Simple affichage en utilisant la couleur transmise
-    finalColor = vec4(gs_couleur, 1.0);
+    finalColor = vec4(vCouleur, 1.0);
 }

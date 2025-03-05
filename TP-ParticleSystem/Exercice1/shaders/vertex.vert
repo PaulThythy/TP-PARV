@@ -26,5 +26,5 @@ void main(){
     vVitesse = p.vitesse;
     vCouleur = p.couleur;
     vRadius = p.radius;
-    //gl_Position = MVP * vec4(p.position, 1.0);
+    gl_Position = MVP * vec4(p.position, 1.0);
 }

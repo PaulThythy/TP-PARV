@@ -39,8 +39,6 @@ typedef struct
   GLfloat couleur[3];
 } Particule;
 
-GLuint locationRadiusParticule;
-
 vector<Particule> listeParticules;
 
 typedef struct
@@ -157,7 +155,7 @@ void emitParticules(int nbParticules)
     p.vitesse[2] = vz;
 
     p.masse = 0.01f;
-    p.radius = 0.01f; // Ajustez cette valeur selon vos besoins
+    p.radius = 0.05f; // Ajustez cette valeur selon vos besoins
 
     // Attribution d'une couleur aléatoire
     p.couleur[0] = (float)rand() / (float)RAND_MAX;
@@ -176,10 +174,10 @@ void initOpenGL(void)
   glEnable(GL_CULL_FACE); // on active l'élimination des faces qui par défaut n'est pas active
   glEnable(GL_DEPTH_TEST);
   // le shader
-  programID = LoadShaders("shaders/vertex.vert", "shaders/fragment.frag", "shaders/geometry.geom");
+  programID = LoadShaders("shaders/vertex.vert", "shaders/fragment.frag");
 
   glEnable(GL_PROGRAM_POINT_SIZE);
-  //  glPointSize(30.);
+  glPointSize(1);
   glEnable(GL_BLEND);
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
   // Get  handles for our matrix transformations "MVP" VIEW  MODELuniform
@@ -204,7 +202,7 @@ void anim(int NumTimer)
     float dt = static_cast<float>(deltaTime.count());
     const float restitution = 0.8f;
 
-    emitParticules(5);
+    emitParticules(1);
 
     // Mettez à jour la physique de chaque particule
     for (size_t i = 0; i < listeParticules.size(); i++)
@@ -232,12 +230,12 @@ void anim(int NumTimer)
         float cubeMinZ = particulesContainer.cubeMinZ;
         float cubeMaxZ = particulesContainer.cubeMaxZ;
 
-        if (pos.x < cubeMinX) { pos.x = cubeMinX; velocity.x = -velocity.x * restitution; }
+        /*if (pos.x < cubeMinX) { pos.x = cubeMinX; velocity.x = -velocity.x * restitution; }
         else if (pos.x > cubeMaxX) { pos.x = cubeMaxX; velocity.x = -velocity.x * restitution; }
         if (pos.y < cubeMinY) { pos.y = cubeMinY; velocity.y = -velocity.y * restitution; }
         else if (pos.y > cubeMaxY) { pos.y = cubeMaxY; velocity.y = -velocity.y * restitution; }
         if (pos.z < cubeMinZ) { pos.z = cubeMinZ; velocity.z = -velocity.z * restitution; }
-        else if (pos.z > cubeMaxZ) { pos.z = cubeMaxZ; velocity.z = -velocity.z * restitution; }
+        else if (pos.z > cubeMaxZ) { pos.z = cubeMaxZ; velocity.z = -velocity.z * restitution; }*/
 
         listeParticules[i].vitesse[0] = velocity.x;
         listeParticules[i].vitesse[1] = velocity.y;
@@ -250,7 +248,7 @@ void anim(int NumTimer)
     updateSSBO();
 
     glutPostRedisplay();
-    glutTimerFunc(25, anim, 1);
+    glutTimerFunc(50, anim, 1);
 }
 
 //----------------------------------------
@@ -303,21 +301,19 @@ int main(int argc, char **argv)
 
 void createSSBO() {
   // Génération et remplissage du SSBO avec les particules
-  glGenBuffers(1, &ssboParticles);
-  glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssboParticles);
-  glBufferData(GL_SHADER_STORAGE_BUFFER, listeParticules.size() * sizeof(Particule),
-               listeParticules.data(), GL_DYNAMIC_DRAW);
+  glCreateBuffers(1, &ssboParticles);
+  glNamedBufferStorage(ssboParticles, listeParticules.size() * sizeof(Particule),
+               listeParticules.data(), GL_DYNAMIC_STORAGE_BIT);
   // On le lie à l'unité de binding 0
   glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, ssboParticles);
-  glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 }
 
 void updateSSBO() {
   // Mise à jour des données du SSBO
-  glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssboParticles);
-  glBufferData(GL_SHADER_STORAGE_BUFFER, listeParticules.size() * sizeof(Particule),
+  //glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssboParticles);
+  glNamedBufferData(ssboParticles, listeParticules.size() * sizeof(Particule),
                listeParticules.data(), GL_DYNAMIC_DRAW);
-  glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+  //glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 }
 
 //-----------------
