@@ -57,9 +57,10 @@ typedef struct
 } ParticlesContainer;
 
 ParticlesContainer particulesContainer = {
-    -1.0f, 1.0f,
-    -1.0f, 1.0f,
-    0.0f, 2.0f};
+  -1.0f, 1.0f,
+  -1.0f, 1.0f,
+  0.0f, 2.0f
+};
 
 void anim(int NumTimer);
 
@@ -202,7 +203,7 @@ void anim(int NumTimer)
     float dt = static_cast<float>(deltaTime.count());
     const float restitution = 0.8f;
 
-    emitParticules(1);
+    emitParticules(100);
 
     // Mettez à jour la physique de chaque particule
     for (size_t i = 0; i < listeParticules.size(); i++)
@@ -230,12 +231,12 @@ void anim(int NumTimer)
         float cubeMinZ = particulesContainer.cubeMinZ;
         float cubeMaxZ = particulesContainer.cubeMaxZ;
 
-        /*if (pos.x < cubeMinX) { pos.x = cubeMinX; velocity.x = -velocity.x * restitution; }
+        if (pos.x < cubeMinX) { pos.x = cubeMinX; velocity.x = -velocity.x * restitution; }
         else if (pos.x > cubeMaxX) { pos.x = cubeMaxX; velocity.x = -velocity.x * restitution; }
         if (pos.y < cubeMinY) { pos.y = cubeMinY; velocity.y = -velocity.y * restitution; }
         else if (pos.y > cubeMaxY) { pos.y = cubeMaxY; velocity.y = -velocity.y * restitution; }
         if (pos.z < cubeMinZ) { pos.z = cubeMinZ; velocity.z = -velocity.z * restitution; }
-        else if (pos.z > cubeMaxZ) { pos.z = cubeMaxZ; velocity.z = -velocity.z * restitution; }*/
+        else if (pos.z > cubeMaxZ) { pos.z = cubeMaxZ; velocity.z = -velocity.z * restitution; }
 
         listeParticules[i].vitesse[0] = velocity.x;
         listeParticules[i].vitesse[1] = velocity.y;
@@ -313,6 +314,7 @@ void updateSSBO() {
   //glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssboParticles);
   glNamedBufferData(ssboParticles, listeParticules.size() * sizeof(Particule),
                listeParticules.data(), GL_DYNAMIC_DRAW);
+  glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, ssboParticles);
   //glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 }
 
