@@ -67,9 +67,10 @@ void anim(int NumTimer);
 
 // initialisations
 
-void genereVBO();
+void createSSBO();
+void updateSSBO();
 void emitParticules(int nbParticules);
-void deleteVBO();
+void deleteSSBO();
 void traceObjet();
 
 // fonctions de rappel de glut
@@ -103,15 +104,11 @@ const float alpha = glm::radians(15.0f); // déviation max de ±15° (en radians
 //--------------------------
 GLuint programID;                                                     // handle pour le shader
 GLuint MatrixIDMVP, MatrixIDView, MatrixIDModel, MatrixIDPerspective; // handle pour la matrice MVP
-GLuint VBO_sommets, VBO_normales, VBO_indices, VBO_UVtext, VAO;
-
-// location des VBO
-//------------------
-GLuint indexVertex = 0, indexUVTexture = 2, indexNormale = 3, indexVitesse = 4, indexCouleur = 5, indexRayon = 6;
+GLuint ssboParticles;
 
 // variable pour paramétrage eclairage
 //--------------------------------------
-vec3 cameraPosition(2., 0., 0.);
+vec3 cameraPosition(10., 0., 0.);
 // le matériau
 //---------------
 GLfloat materialShininess = 3.;
@@ -129,11 +126,6 @@ glm::mat4 Model, View, Projection; // Matrices constituant MVP
 int screenHeight = 1500;
 int screenWidth = 1500;
 
-// pour la texcture
-//-------------------
-GLuint image;
-GLuint bufTexture, bufNormalMap;
-GLuint locationTexture, locationNormalMap;
 //-------------------------
 void emitParticules(int nbParticules)
 {
@@ -165,7 +157,7 @@ void emitParticules(int nbParticules)
     p.vitesse[2] = vz;
 
     p.masse = 0.01f;
-    p.radius = 0.009f; // Ajustez cette valeur selon vos besoins
+    p.radius = 0.01f; // Ajustez cette valeur selon vos besoins
 
     // Attribution d'une couleur aléatoire
     p.couleur[0] = (float)rand() / (float)RAND_MAX;
@@ -192,9 +184,9 @@ void initOpenGL(void)
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
   // Get  handles for our matrix transformations "MVP" VIEW  MODELuniform
   MatrixIDMVP = glGetUniformLocation(programID, "MVP");
-  //  MatrixIDView = glGetUniformLocation(programID, "VIEW");
+  MatrixIDView = glGetUniformLocation(programID, "VIEW");
   MatrixIDModel = glGetUniformLocation(programID, "MODEL");
-  // MatrixIDPerspective = glGetUniformLocation(programID, "PERSPECTIVE");
+  MatrixIDPerspective = glGetUniformLocation(programID, "PERSPECTIVE");
 
   // Projection matrix : 65 Field of View, 1:1 ratio, display range : 1 unit <-> 1000 units
   // ATTENTIOn l'angle est donné en radians si f GLM_FORCE_RADIANS est défini sinon en degré
@@ -203,110 +195,62 @@ void initOpenGL(void)
 
 void anim(int NumTimer)
 {
-  using namespace std::chrono;
-  static time_point<system_clock> refTime = system_clock::now();
+    using namespace std::chrono;
+    static time_point<system_clock> refTime = system_clock::now();
+    time_point<system_clock> currentTime = system_clock::now();
+    duration<double> deltaTime = currentTime - refTime;
+    refTime = currentTime;
 
-  time_point<system_clock> currentTime = system_clock::now(); // This and "end"'s type is std::chrono::time_point
+    float dt = static_cast<float>(deltaTime.count());
+    const float restitution = 0.8f;
 
-  duration<double> deltaTime = currentTime - refTime;
+    emitParticules(5);
 
-  int delatTemps = duration_cast<milliseconds>(deltaTime).count(); // temps  écoulé en millisecondes depuis le dernier appel de anim
-
-  refTime = currentTime;
-
-  // dt en secondes (attention : deltaTime est en secondes)
-  float dt = static_cast<float>(deltaTime.count());
-
-  const float restitution = 0.8f;
-
-  emitParticules(5);
-
-  for (size_t i = 0; i < listeParticules.size(); i++)
-  {
-    vec3 velocity(listeParticules[i].vitesse[0],
-                  listeParticules[i].vitesse[1],
-                  listeParticules[i].vitesse[2]);
-    vec3 pos(listeParticules[i].position[0],
-             listeParticules[i].position[1],
-             listeParticules[i].position[2]);
-
-    vec3 F_gravity = listeParticules[i].masse * gravity;
-
-    float speed = length(velocity);
-    vec3 F_drag(0.0f);
-    if (speed > 0.0f)
+    // Mettez à jour la physique de chaque particule
+    for (size_t i = 0; i < listeParticules.size(); i++)
     {
-      F_drag = -0.5f * Cx * rho * S * speed * speed * normalize(velocity);
+        vec3 velocity(listeParticules[i].vitesse[0],
+                      listeParticules[i].vitesse[1],
+                      listeParticules[i].vitesse[2]);
+        vec3 pos(listeParticules[i].position[0],
+                 listeParticules[i].position[1],
+                 listeParticules[i].position[2]);
+
+        vec3 F_gravity = listeParticules[i].masse * gravity;
+        float speed = length(velocity);
+        vec3 F_drag = (speed > 0.0f) ? -0.5f * Cx * rho * S * speed * speed * normalize(velocity) : vec3(0.0f);
+        vec3 F_net = F_gravity + F_drag;
+        vec3 acceleration = F_net / listeParticules[i].masse;
+
+        velocity += acceleration * dt;
+        pos += velocity * dt;
+
+        float cubeMinX = particulesContainer.cubeMinX;
+        float cubeMaxX = particulesContainer.cubeMaxX;
+        float cubeMinY = particulesContainer.cubeMinY;
+        float cubeMaxY = particulesContainer.cubeMaxY;
+        float cubeMinZ = particulesContainer.cubeMinZ;
+        float cubeMaxZ = particulesContainer.cubeMaxZ;
+
+        if (pos.x < cubeMinX) { pos.x = cubeMinX; velocity.x = -velocity.x * restitution; }
+        else if (pos.x > cubeMaxX) { pos.x = cubeMaxX; velocity.x = -velocity.x * restitution; }
+        if (pos.y < cubeMinY) { pos.y = cubeMinY; velocity.y = -velocity.y * restitution; }
+        else if (pos.y > cubeMaxY) { pos.y = cubeMaxY; velocity.y = -velocity.y * restitution; }
+        if (pos.z < cubeMinZ) { pos.z = cubeMinZ; velocity.z = -velocity.z * restitution; }
+        else if (pos.z > cubeMaxZ) { pos.z = cubeMaxZ; velocity.z = -velocity.z * restitution; }
+
+        listeParticules[i].vitesse[0] = velocity.x;
+        listeParticules[i].vitesse[1] = velocity.y;
+        listeParticules[i].vitesse[2] = velocity.z;
+        listeParticules[i].position[0] = pos.x;
+        listeParticules[i].position[1] = pos.y;
+        listeParticules[i].position[2] = pos.z;
     }
 
-    // Force nette
-    vec3 F_net = F_gravity + F_drag;
+    updateSSBO();
 
-    // Accélération
-    vec3 acceleration = F_net / listeParticules[i].masse;
-
-    // Mise à jour de la vitesse (méthode d'Euler)
-    velocity += acceleration * dt;
-
-    // Mise à jour de la position
-    pos += velocity * dt;
-
-    float cubeMinX = particulesContainer.cubeMinX;
-    float cubeMaxX = particulesContainer.cubeMaxX;
-    float cubeMinY = particulesContainer.cubeMinY;
-    float cubeMaxY = particulesContainer.cubeMaxY;
-    float cubeMinZ = particulesContainer.cubeMinZ;
-    float cubeMaxZ = particulesContainer.cubeMaxZ;
-
-    // Rebond sur les parois du cube
-    if (pos.x < cubeMinX)
-    {
-      pos.x = cubeMinX;
-      velocity.x = -velocity.x * restitution;
-    }
-    else if (pos.x > cubeMaxX)
-    {
-      pos.x = cubeMaxX;
-      velocity.x = -velocity.x * restitution;
-    }
-    if (pos.y < cubeMinY)
-    {
-      pos.y = cubeMinY;
-      velocity.y = -velocity.y * restitution;
-    }
-    else if (pos.y > cubeMaxY)
-    {
-      pos.y = cubeMaxY;
-      velocity.y = -velocity.y * restitution;
-    }
-    if (pos.z < cubeMinZ)
-    {
-      pos.z = cubeMinZ;
-      velocity.z = -velocity.z * restitution;
-    }
-    else if (pos.z > cubeMaxZ)
-    {
-      pos.z = cubeMaxZ;
-      velocity.z = -velocity.z * restitution;
-    }
-
-    listeParticules[i].vitesse[0] = velocity.x;
-    listeParticules[i].vitesse[1] = velocity.y;
-    listeParticules[i].vitesse[2] = velocity.z;
-
-    listeParticules[i].position[0] = pos.x;
-    listeParticules[i].position[1] = pos.y;
-    listeParticules[i].position[2] = pos.z;
-  }
-
-  glBindBuffer(GL_ARRAY_BUFFER, VBO_sommets);
-
-  glBufferData(GL_ARRAY_BUFFER, listeParticules.size() * sizeof(Particule), listeParticules.data(), GL_DYNAMIC_DRAW);
-
-  glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-  glutPostRedisplay();
-  glutTimerFunc(25, anim, 1);
+    glutPostRedisplay();
+    glutTimerFunc(25, anim, 1);
 }
 
 //----------------------------------------
@@ -340,7 +284,7 @@ int main(int argc, char **argv)
 
   initOpenGL();
 
-  genereVBO();
+  createSSBO();
 
   /* enregistrement des fonctions de rappel */
   glutDisplayFunc(affichage);
@@ -353,47 +297,35 @@ int main(int argc, char **argv)
   glutMainLoop();
 
   glDeleteProgram(programID);
-  deleteVBO();
+  deleteSSBO();
   return 0;
 }
 
-void genereVBO()
-{
-
-  if (glIsBuffer(VBO_sommets) == GL_TRUE)
-    glDeleteBuffers(1, &VBO_sommets);
-  glGenBuffers(1, &VBO_sommets);
-  glBindBuffer(GL_ARRAY_BUFFER, VBO_sommets);
-
-  glBufferData(GL_ARRAY_BUFFER, listeParticules.size() * sizeof(Particule), listeParticules.data(), GL_DYNAMIC_DRAW);
-  glGenBuffers(1, &VAO);
-  glEnableVertexAttribArray(indexVertex);
-  glEnableVertexAttribArray(indexVitesse);
-  glEnableVertexAttribArray(indexCouleur);
-  glEnableVertexAttribArray(indexRayon);
-
-  glBindVertexArray(VAO); // ici on bind le VAO , c'est lui qui recupèrera les configurations des VBO glVertexAttribPointer , glEnableVertexAttribArray...
-  glBindBuffer(GL_ARRAY_BUFFER, VBO_sommets);
-
-  glVertexAttribPointer(indexVertex, 3, GL_FLOAT, GL_FALSE, sizeof(Particule), reinterpret_cast<void *>(offsetof(Particule, position)));
-  glVertexAttribPointer(indexVitesse, 3, GL_FLOAT, GL_FALSE, sizeof(Particule), reinterpret_cast<void *>(offsetof(Particule, vitesse)));
-  glVertexAttribPointer(indexCouleur, 3, GL_FLOAT, GL_FALSE, sizeof(Particule), reinterpret_cast<void *>(offsetof(Particule, couleur)));
-  glVertexAttribPointer(indexRayon, 3, GL_FLOAT, GL_FALSE, sizeof(Particule), reinterpret_cast<void *>(offsetof(Particule, radius)));
-
-  // une fois la config terminée
-  // on désactive le dernier VBO et le VAO pour qu'ils ne soit pas accidentellement modifié
-  glBindBuffer(GL_ARRAY_BUFFER, 0);
-  glBindVertexArray(0);
+void createSSBO() {
+  // Génération et remplissage du SSBO avec les particules
+  glGenBuffers(1, &ssboParticles);
+  glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssboParticles);
+  glBufferData(GL_SHADER_STORAGE_BUFFER, listeParticules.size() * sizeof(Particule),
+               listeParticules.data(), GL_DYNAMIC_DRAW);
+  // On le lie à l'unité de binding 0
+  glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, ssboParticles);
+  glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 }
+
+void updateSSBO() {
+  // Mise à jour des données du SSBO
+  glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssboParticles);
+  glBufferData(GL_SHADER_STORAGE_BUFFER, listeParticules.size() * sizeof(Particule),
+               listeParticules.data(), GL_DYNAMIC_DRAW);
+  glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+}
+
 //-----------------
-void deleteVBO()
+void deleteSSBO()
 //-----------------
 {
-  glDeleteBuffers(1, &VBO_sommets);
-  glDeleteBuffers(1, &VBO_normales);
-  glDeleteBuffers(1, &VBO_indices);
-  glDeleteBuffers(1, &VBO_UVtext);
-  glDeleteBuffers(1, &VAO);
+  glDeleteBuffers(1, &ssboParticles);
+  ssboParticles = 0;
 }
 
 /* fonction d'affichage */
@@ -430,13 +362,11 @@ void traceObjet()
 
   // on envoie les données necessaires aux shaders */
   glUniformMatrix4fv(MatrixIDMVP, 1, GL_FALSE, &MVP[0][0]);
-  // glUniformMatrix4fv(MatrixIDView, 1, GL_FALSE,&View[0][0]);
+  glUniformMatrix4fv(MatrixIDView, 1, GL_FALSE,&View[0][0]);
   glUniformMatrix4fv(MatrixIDModel, 1, GL_FALSE, &Model[0][0]);
-  // glUniformMatrix4fv(MatrixIDPerspective, 1, GL_FALSE, &Projection[0][0]);
+  glUniformMatrix4fv(MatrixIDPerspective, 1, GL_FALSE, &Projection[0][0]);
 
   // pour l'affichage
-
-  glBindVertexArray(VAO); // on active le VAO
   glDrawArrays(GL_POINTS, 0, listeParticules.size());
   glBindVertexArray(0); // on desactive les VAO
 
