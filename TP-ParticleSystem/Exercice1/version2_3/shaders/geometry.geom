@@ -4,9 +4,9 @@ layout(points) in;
 layout(triangle_strip, max_vertices = 146) out;
 
 uniform mat4 MVP;
-uniform mat4 View;
-uniform mat4 Projection;
-uniform mat4 Model;
+uniform mat4 VIEW;
+uniform mat4 PROJECTION;
+uniform mat4 MODEL;
 
 float PI = 3.14159265;
 
