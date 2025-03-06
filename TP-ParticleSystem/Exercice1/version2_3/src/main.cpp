@@ -41,6 +41,8 @@ struct alignas(16) Particle
 };
 
 vector<Particle> particles;
+static const size_t MAX_PARTICLES = 100000;
+unsigned int currentParticleCount = 0;
 
 typedef struct
 {
@@ -55,7 +57,6 @@ void anim(int NumTimer);
 // initialisations
 
 void createSSBO();
-void updateSSBO();
 void emitParticles(int nbParticles);
 void deleteSSBO();
 void traceObjet();
@@ -66,10 +67,8 @@ void clavier(unsigned char, int, int);
 void mouse(int, int, int, int);
 void mouseMotion(int, int);
 void reshape(int, int);
-// misc
-void drawString(const char *str, int x, int y, float color[4], void *font);
-void showInfo();
-void *font = GLUT_BITMAP_8_BY_13; // pour afficher des textes 2D sur l'ecran
+
+
 // variables globales pour OpenGL
 bool mouseLeftDown;
 bool mouseRightDown;
@@ -125,6 +124,15 @@ int screenWidth = 1500;
 //-------------------------
 void emitParticles(int nbParticles)
 {
+  if (currentParticleCount >= MAX_PARTICLES) {
+    return;
+  }
+  if (currentParticleCount + nbParticles > MAX_PARTICLES) {
+      nbParticles = MAX_PARTICLES - currentParticleCount;
+  }
+
+  size_t oldCount = currentParticleCount;
+
   for (int i = 0; i < nbParticles; i++)
   {
     Particle p;
@@ -163,6 +171,17 @@ void emitParticles(int nbParticles)
 
     particles.push_back(p);
   }
+
+  // On met à jour le SSBO **seulement** pour la portion qu’on vient d’ajouter
+  glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssboParticles);
+  
+  // "SubData" copy: on écrit la zone [oldCount, oldCount + nbParticles)
+  glNamedBufferSubData(ssboParticles,
+                       oldCount * sizeof(Particle),
+                       nbParticles * sizeof(Particle),
+                       &particles[oldCount]); 
+  
+  currentParticleCount += nbParticles;
 }
 
 //----------------------------------------
@@ -218,9 +237,9 @@ void anim(int NumTimer)
 
     float dt = static_cast<float>(deltaTime.count());
 
-    emitParticles(100);
+    emitParticles(1000);
 
-    updateSSBO();
+    //now we stop to call updateSSBO on each frame because it cancels the previous frame work
 
     glUseProgram(computeProgramID);
 
@@ -234,10 +253,9 @@ void anim(int NumTimer)
     glUniform1f(cubeMinYLocation, -1.0f); glUniform1f(cubeMaxYLocation, 1.0f);
     glUniform1f(cubeMinZLocation, 0.0f); glUniform1f(cubeMaxZLocation, 2.0f);
 
-    unsigned int N = particles.size();
-    glUniform1ui(particleCountLocation, N);
+    glUniform1ui(particleCountLocation, currentParticleCount);
 
-    GLuint groups = (N + 255) / 256;
+    GLuint groups = (currentParticleCount + 255) / 256;
     glDispatchCompute(groups, 1, 1);
 
     glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
@@ -295,17 +313,16 @@ int main(int argc, char **argv)
 }
 
 void createSSBO() {
-  // Génération et remplissage du SSBO avec les particules
   glCreateBuffers(1, &ssboParticles);
-  glNamedBufferStorage(ssboParticles, particles.size() * sizeof(Particle),
-               particles.data(), GL_DYNAMIC_STORAGE_BIT);
-  // On le lie à l'unité de binding 0
-  glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, ssboParticles);
-}
+    
+  // On réserve la taille MAX_PARTICLES * sizeof(Particle)
+  // mais on n’initialise pas (data = nullptr).
+  glNamedBufferStorage(ssboParticles,
+                        MAX_PARTICLES * sizeof(Particle),
+                        nullptr,
+                        GL_DYNAMIC_STORAGE_BIT | GL_MAP_WRITE_BIT);
 
-void updateSSBO() {
-  glNamedBufferData(ssboParticles, particles.size() * sizeof(Particle),
-               particles.data(), GL_DYNAMIC_DRAW);
+  // On lie le SSBO (binding 0) pour que le compute shader y accède
   glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, ssboParticles);
 }
 
