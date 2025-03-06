@@ -24,6 +24,8 @@ uniform float S;
 
 uniform uint particleCount;
 
+uniform bool computeCollisions;
+
 uniform struct ParticleContainer {
     float cubeMinX, cubeMaxX;
     float cubeMinY, cubeMaxY;
@@ -79,6 +81,28 @@ void main() {
     else if (pos.z > particleContainer.cubeMaxZ) {
        pos.z = particleContainer.cubeMaxZ;
        velocity.z = -velocity.z * p.restitution;
+    }
+
+    if (computeCollisions) {
+        for (uint j = 0; j < particleCount; j++) {
+            if (j == idx) continue;
+        
+            Particle other = particles[j];
+
+            vec3 delta    = pos - other.position;
+            float dist    = length(delta);
+            float minDist = p.radius + other.radius; 
+
+            if (dist < minDist && dist > 0.0) {
+                vec3 normal = delta / dist;
+
+                float overlap = minDist - dist;
+
+                pos += 0.5 * overlap * normal;
+
+                velocity = reflect(velocity, normal) * p.restitution;
+            }
+        }
     }
 
     p.position = pos;

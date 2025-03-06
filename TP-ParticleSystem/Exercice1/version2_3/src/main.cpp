@@ -55,7 +55,6 @@ Emitter emitter = {vec3(0.0f, 0.0f, 1.0f), 3.0f};
 void anim(int NumTimer);
 
 // initialisations
-
 void createSSBO();
 void emitParticles(int nbParticles);
 void deleteSSBO();
@@ -100,6 +99,9 @@ GLint cxLocation, rhoLocation, sLocation;
 GLint cubeMinXLocation, cubeMaxXLocation;
 GLint cubeMinYLocation, cubeMaxYLocation;
 GLint cubeMinZLocation, cubeMaxZLocation;
+
+GLint computeCollisionsLocation;
+bool collisionsEnabled = true;
 
 // variable pour paramétrage eclairage
 //--------------------------------------
@@ -214,6 +216,8 @@ void initOpenGL(void)
 
   particleCountLocation = glGetUniformLocation(computeProgramID, "particleCount");
 
+  computeCollisionsLocation = glGetUniformLocation(computeProgramID, "computeCollisions");
+
   cubeMinXLocation = glGetUniformLocation(computeProgramID, "particleContainer.cubeMinX");
   cubeMaxXLocation = glGetUniformLocation(computeProgramID, "particleContainer.cubeMaxX");
   cubeMinYLocation = glGetUniformLocation(computeProgramID, "particleContainer.cubeMinY");
@@ -237,7 +241,7 @@ void anim(int NumTimer)
 
     float dt = static_cast<float>(deltaTime.count());
 
-    emitParticles(1000);
+    emitParticles(100);
 
     //now we stop to call updateSSBO on each frame because it cancels the previous frame work
 
@@ -254,6 +258,8 @@ void anim(int NumTimer)
     glUniform1f(cubeMinZLocation, 0.0f); glUniform1f(cubeMaxZLocation, 2.0f);
 
     glUniform1ui(particleCountLocation, currentParticleCount);
+
+    glUniform1i(computeCollisionsLocation, collisionsEnabled ? 1 : 0);
 
     GLuint groups = (currentParticleCount + 255) / 256;
     glDispatchCompute(groups, 1, 1);
@@ -445,6 +451,10 @@ void clavier(unsigned char touche, int x, int y)
   case 'A': /* Affichage en mode sommets seuls */
     LightAmbientCoefficient += .1;
     glutPostRedisplay();
+    break;
+  case 'c':
+    collisionsEnabled = !collisionsEnabled;
+    printf("Collisions: %s\n", collisionsEnabled ? "on" : "off");
     break;
 
   case 'q': /*la touche 'q' permet de quitter le programme */
