@@ -32,23 +32,11 @@ using namespace std;
 
 struct alignas(16) Particule
 {
-  // position[3], complétés par 1 float de padding pour faire 16 octets
-  float position[3];
-  float pad0; // complète 3×4 = 12 octets + 4 = 16
-
-  // vitesse[3] + 1 float de padding pour arriver à 16
-  float vitesse[3];
-  float pad1; // complète 12 octets + 4 = 16
-
-  // masse + radius = 8 octets,
-  // on rajoute pad2[2] pour aligner le champ suivant sur 16
-  float masse;
-  float radius;
-  float pad2[2]; // 8 octets de padding -> total 16
-
-  // couleur[3] + pad3 = 16 octets
-  float couleur[3];
-  float pad3; // 12 + 4 = 16
+  alignas(16) vec3 position;
+  alignas(16) vec3 vitesse;
+  alignas(16) vec3 couleur;
+  alignas(4) float masse;
+  alignas(4) float radius;
 };
 
 vector<Particule> listeParticules;
@@ -151,9 +139,9 @@ void emitParticules(int nbParticules)
 
     // La position initiale est l'addition de la position de l'émetteur et de l'offset
     vec3 pos = emitter.position + vec3(rx, ry, rz);
-    p.position[0] = pos.x;
-    p.position[1] = pos.y;
-    p.position[2] = pos.z;
+    p.position.x = pos.x;
+    p.position.y = pos.y;
+    p.position.z = pos.z;
 
     // Calcul de la vitesse initiale
     // On souhaite que l'angle entre la vitesse et l'axe z soit dans [0, alpha]
@@ -163,17 +151,17 @@ void emitParticules(int nbParticules)
     float vx = emitter.V0 * sin(theta) * cos(phi);
     float vy = emitter.V0 * sin(theta) * sin(phi);
     float vz = emitter.V0 * cos(theta);
-    p.vitesse[0] = vx;
-    p.vitesse[1] = vy;
-    p.vitesse[2] = vz;
+    p.vitesse.x = vx;
+    p.vitesse.y = vy;
+    p.vitesse.z = vz;
 
     p.masse = 0.01f;
-    p.radius = 0.05f; // Ajustez cette valeur selon vos besoins
+    p.radius = 0.005f; // Ajustez cette valeur selon vos besoins
 
     // Attribution d'une couleur aléatoire
-    p.couleur[0] = (float)rand() / (float)RAND_MAX;
-    p.couleur[1] = (float)rand() / (float)RAND_MAX;
-    p.couleur[2] = (float)rand() / (float)RAND_MAX;
+    p.couleur.x = (float)rand() / (float)RAND_MAX;
+    p.couleur.y = (float)rand() / (float)RAND_MAX;
+    p.couleur.z = (float)rand() / (float)RAND_MAX;
 
     listeParticules.push_back(p);
   }
@@ -215,7 +203,7 @@ void anim(int NumTimer)
     float dt = static_cast<float>(deltaTime.count());
     const float restitution = 0.8f;
 
-    emitParticules(1);
+    emitParticules(100);
 
     // Mettez à jour la physique de chaque particule
     for (size_t i = 0; i < listeParticules.size(); i++)
@@ -261,7 +249,7 @@ void anim(int NumTimer)
     updateSSBO();
 
     glutPostRedisplay();
-    glutTimerFunc(50, anim, 1);
+    glutTimerFunc(20, anim, 1);
 }
 
 //----------------------------------------
