@@ -11,12 +11,12 @@ uniform mat4 Model;
 float PI = 3.14159265;
 
 in vec3 vPosition[];
-in vec3 vCouleur[];
+in vec3 vColor[];
 in float vRadius[];
 
 out vec2 gs_texCoord; 
 out vec3 gs_normal;
-out vec3 gs_couleur;
+out vec3 gs_color;
 
 int latitudes = 5;
 int longitudes = 5;
@@ -46,13 +46,13 @@ void main() {
             gl_Position = MVP * vec4(centerLocal + v1, 1.0);
             gs_texCoord = t1;
             gs_normal = n1;
-            gs_couleur = vCouleur[0];
+            gs_color = vColor[0];
             EmitVertex();
             
             gl_Position = MVP * vec4(centerLocal + v2, 1.0);
             gs_texCoord = t2;
             gs_normal = n2;
-            gs_couleur = vCouleur[0];
+            gs_color = vColor[0];
             EmitVertex();
         }
         EndPrimitive();

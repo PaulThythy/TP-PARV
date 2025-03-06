@@ -30,16 +30,16 @@
 using namespace glm;
 using namespace std;
 
-struct alignas(16) Particule
+struct alignas(16) Particle
 {
   alignas(16) vec3 position;
-  alignas(16) vec3 vitesse;
-  alignas(16) vec3 couleur;
-  alignas(4) float masse;
+  alignas(16) vec3 velocity;
+  alignas(16) vec3 color;
+  alignas(4) float weight;
   alignas(4) float radius;
 };
 
-vector<Particule> listeParticules;
+vector<Particle> particles;
 
 typedef struct
 {
@@ -56,7 +56,7 @@ typedef struct
   const float cubeMinZ, cubeMaxZ;
 } ParticlesContainer;
 
-ParticlesContainer particulesContainer = {
+ParticlesContainer particlesContainer = {
   -1.0f, 1.0f,
   -1.0f, 1.0f,
   0.0f, 2.0f
@@ -126,11 +126,11 @@ int screenHeight = 1500;
 int screenWidth = 1500;
 
 //-------------------------
-void emitParticules(int nbParticules)
+void emitParticules(int nbParticles)
 {
-  for (int i = 0; i < nbParticules; i++)
+  for (int i = 0; i < nbParticles; i++)
   {
-    Particule p;
+    Particle p;
 
     // Génération d'un offset aléatoire dans l'intervalle [-0.05, 0.05] pour chaque coordonnée
     float rx = ((float)rand() / (float)RAND_MAX) * 0.1f - 0.05f;
@@ -151,19 +151,19 @@ void emitParticules(int nbParticules)
     float vx = emitter.V0 * sin(theta) * cos(phi);
     float vy = emitter.V0 * sin(theta) * sin(phi);
     float vz = emitter.V0 * cos(theta);
-    p.vitesse.x = vx;
-    p.vitesse.y = vy;
-    p.vitesse.z = vz;
+    p.velocity.x = vx;
+    p.velocity.y = vy;
+    p.velocity.z = vz;
 
-    p.masse = 0.01f;
+    p.weight = 0.01f;
     p.radius = 0.005f; // Ajustez cette valeur selon vos besoins
 
     // Attribution d'une couleur aléatoire
-    p.couleur.x = (float)rand() / (float)RAND_MAX;
-    p.couleur.y = (float)rand() / (float)RAND_MAX;
-    p.couleur.z = (float)rand() / (float)RAND_MAX;
+    p.color.x = (float)rand() / (float)RAND_MAX;
+    p.color.y = (float)rand() / (float)RAND_MAX;
+    p.color.z = (float)rand() / (float)RAND_MAX;
 
-    listeParticules.push_back(p);
+    particles.push_back(p);
   }
 }
 
@@ -206,30 +206,30 @@ void anim(int NumTimer)
     emitParticules(100);
 
     // Mettez à jour la physique de chaque particule
-    for (size_t i = 0; i < listeParticules.size(); i++)
+    for (size_t i = 0; i < particles.size(); i++)
     {
-        vec3 velocity(listeParticules[i].vitesse[0],
-                      listeParticules[i].vitesse[1],
-                      listeParticules[i].vitesse[2]);
-        vec3 pos(listeParticules[i].position[0],
-                 listeParticules[i].position[1],
-                 listeParticules[i].position[2]);
+        vec3 velocity(particles[i].velocity[0],
+                      particles[i].velocity[1],
+                      particles[i].velocity[2]);
+        vec3 pos(particles[i].position[0],
+                 particles[i].position[1],
+                 particles[i].position[2]);
 
-        vec3 F_gravity = listeParticules[i].masse * gravity;
+        vec3 F_gravity = particles[i].weight * gravity;
         float speed = length(velocity);
         vec3 F_drag = (speed > 0.0f) ? -0.5f * Cx * rho * S * speed * speed * normalize(velocity) : vec3(0.0f);
         vec3 F_net = F_gravity + F_drag;
-        vec3 acceleration = F_net / listeParticules[i].masse;
+        vec3 acceleration = F_net / particles[i].weight;
 
         velocity += acceleration * dt;
         pos += velocity * dt;
 
-        float cubeMinX = particulesContainer.cubeMinX;
-        float cubeMaxX = particulesContainer.cubeMaxX;
-        float cubeMinY = particulesContainer.cubeMinY;
-        float cubeMaxY = particulesContainer.cubeMaxY;
-        float cubeMinZ = particulesContainer.cubeMinZ;
-        float cubeMaxZ = particulesContainer.cubeMaxZ;
+        float cubeMinX = particlesContainer.cubeMinX;
+        float cubeMaxX = particlesContainer.cubeMaxX;
+        float cubeMinY = particlesContainer.cubeMinY;
+        float cubeMaxY = particlesContainer.cubeMaxY;
+        float cubeMinZ = particlesContainer.cubeMinZ;
+        float cubeMaxZ = particlesContainer.cubeMaxZ;
 
         if (pos.x < cubeMinX) { pos.x = cubeMinX; velocity.x = -velocity.x * restitution; }
         else if (pos.x > cubeMaxX) { pos.x = cubeMaxX; velocity.x = -velocity.x * restitution; }
@@ -238,12 +238,12 @@ void anim(int NumTimer)
         if (pos.z < cubeMinZ) { pos.z = cubeMinZ; velocity.z = -velocity.z * restitution; }
         else if (pos.z > cubeMaxZ) { pos.z = cubeMaxZ; velocity.z = -velocity.z * restitution; }
 
-        listeParticules[i].vitesse[0] = velocity.x;
-        listeParticules[i].vitesse[1] = velocity.y;
-        listeParticules[i].vitesse[2] = velocity.z;
-        listeParticules[i].position[0] = pos.x;
-        listeParticules[i].position[1] = pos.y;
-        listeParticules[i].position[2] = pos.z;
+        particles[i].velocity[0] = velocity.x;
+        particles[i].velocity[1] = velocity.y;
+        particles[i].velocity[2] = velocity.z;
+        particles[i].position[0] = pos.x;
+        particles[i].position[1] = pos.y;
+        particles[i].position[2] = pos.z;
     }
 
     updateSSBO();
@@ -303,8 +303,8 @@ int main(int argc, char **argv)
 void createSSBO() {
   // Génération et remplissage du SSBO avec les particules
   glCreateBuffers(1, &ssboParticles);
-  glNamedBufferStorage(ssboParticles, listeParticules.size() * sizeof(Particule),
-               listeParticules.data(), GL_DYNAMIC_STORAGE_BIT);
+  glNamedBufferStorage(ssboParticles, particles.size() * sizeof(Particle),
+               particles.data(), GL_DYNAMIC_STORAGE_BIT);
   // On le lie à l'unité de binding 0
   glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, ssboParticles);
 }
@@ -312,8 +312,8 @@ void createSSBO() {
 void updateSSBO() {
   // Mise à jour des données du SSBO
   //glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssboParticles);
-  glNamedBufferData(ssboParticles, listeParticules.size() * sizeof(Particule),
-               listeParticules.data(), GL_DYNAMIC_DRAW);
+  glNamedBufferData(ssboParticles, particles.size() * sizeof(Particle),
+               particles.data(), GL_DYNAMIC_DRAW);
   glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, ssboParticles);
   //glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 }
@@ -365,7 +365,7 @@ void traceObjet()
   glUniformMatrix4fv(MatrixIDPerspective, 1, GL_FALSE, &Projection[0][0]);
 
   // pour l'affichage
-  glDrawArrays(GL_POINTS, 0, listeParticules.size());
+  glDrawArrays(GL_POINTS, 0, particles.size());
   glBindVertexArray(0); // on desactive les VAO
 
   glUseProgram(0); // et le pg

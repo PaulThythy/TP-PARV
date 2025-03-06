@@ -2,9 +2,9 @@
 
 struct Particule {
     vec3 position;
-    vec3 vitesse;
-    vec3 couleur;
-    float masse;
+    vec3 velocity;
+    vec3 color;
+    float weight;
     float radius;
 };
 
@@ -16,15 +16,15 @@ uniform mat4 MVP;
 uniform mat4 MODEL;
 
 out vec3 vPosition;
-out vec3 vVitesse;
-out vec3 vCouleur;
+out vec3 vVelocity;
+out vec3 vColor;
 out float vRadius;
 
 void main(){
     Particule p = particles[gl_VertexID];
     vPosition = p.position;
-    vVitesse = p.vitesse;
-    vCouleur = p.couleur;
+    vVelocity = p.velocity;
+    vColor = p.color;
     vRadius = p.radius;
     gl_Position = MVP * vec4(p.position, 1.0);
 }
