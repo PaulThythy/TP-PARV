@@ -12,21 +12,76 @@ struct Particle {
 };
 
 layout(std430, binding = 0) buffer ParticlesBuffer {
-    Particule particles[];
+    Particle particles[];
 };
 
 uniform float dt;
 uniform vec3 gravity;
-//uniform float restitution (maybe to put in the particle struct)
 
 uniform float Cx;
 uniform float rho;
 uniform float S;
 
+uniform uint particleCount;
+
 uniform struct ParticleContainer {
     float cubeMinX, cubeMaxX;
     float cubeMinY, cubeMaxY;
     float cubeMinZ, cubeMaxZ;
-} particleContrainer;
+} particleContainer;
 
 
+void main() {
+    uint idx = gl_GlobalInvocationID.x;
+
+    if (idx >= particleCount) {
+        return;
+    }
+
+    Particle p = particles[idx];
+
+    vec3 F_gravity = p.weight * gravity;
+    vec3 velocity  = p.velocity;
+    float speed    = length(velocity);
+
+    vec3 F_drag = vec3(0.0);
+    if (speed > 0.0) {
+        F_drag = -0.5 * Cx * rho * S * speed * speed * normalize(velocity);
+    }
+    vec3 F_net = F_gravity + F_drag;
+
+    vec3 accel = F_net / p.weight;
+    velocity   = velocity + accel * dt;
+    vec3 pos   = p.position + velocity * dt;
+
+    if (pos.x < particleContainer.cubeMinX) {
+       pos.x = particleContainer.cubeMinX;
+       velocity.x = -velocity.x * p.restitution;
+    }
+    else if (pos.x > particleContainer.cubeMaxX) {
+       pos.x = particleContainer.cubeMaxX;
+       velocity.x = -velocity.x * p.restitution;
+    }
+
+    if (pos.y < particleContainer.cubeMinY) {
+       pos.y = particleContainer.cubeMinY;
+       velocity.y = -velocity.y * p.restitution;
+    }
+    else if (pos.y > particleContainer.cubeMaxY) {
+       pos.y = particleContainer.cubeMaxY;
+       velocity.y = -velocity.y * p.restitution;
+    }
+
+    if (pos.z < particleContainer.cubeMinZ) {
+       pos.z = particleContainer.cubeMinZ;
+       velocity.z = -velocity.z * p.restitution;
+    }
+    else if (pos.z > particleContainer.cubeMaxZ) {
+       pos.z = particleContainer.cubeMaxZ;
+       velocity.z = -velocity.z * p.restitution;
+    }
+
+    p.position = pos;
+    p.velocity = velocity;
+    particles[idx] = p;
+}

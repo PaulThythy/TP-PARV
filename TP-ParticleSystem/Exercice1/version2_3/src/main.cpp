@@ -69,7 +69,7 @@ void anim(int NumTimer);
 
 void createSSBO();
 void updateSSBO();
-void emitParticules(int nbParticules);
+void emitParticles(int nbParticles);
 void deleteSSBO();
 void traceObjet();
 
@@ -107,6 +107,14 @@ GLuint computeProgramID;                                              // handle 
 GLuint MatrixIDMVP, MatrixIDView, MatrixIDModel, MatrixIDPerspective; // handle pour la matrice MVP
 GLuint ssboParticles;
 
+GLint dtLocation, gravityLocation;
+GLint particleCountLocation;
+GLint cxLocation, rhoLocation, sLocation;
+
+GLint cubeMinXLocation, cubeMaxXLocation;
+GLint cubeMinYLocation, cubeMaxYLocation;
+GLint cubeMinZLocation, cubeMaxZLocation;
+
 // variable pour paramétrage eclairage
 //--------------------------------------
 vec3 cameraPosition(2., 0., 0.);
@@ -128,7 +136,7 @@ int screenHeight = 1500;
 int screenWidth = 1500;
 
 //-------------------------
-void emitParticules(int nbParticles)
+void emitParticles(int nbParticles)
 {
   for (int i = 0; i < nbParticles; i++)
   {
@@ -179,6 +187,7 @@ void initOpenGL(void)
   glEnable(GL_DEPTH_TEST);
   // le shader
   programID = LoadShaders("shaders/vertex.vert", "shaders/fragment.frag", "shaders/geometry.geom");
+  computeProgramID = LoadComputeShader("shaders/compute.comp");
 
   glEnable(GL_PROGRAM_POINT_SIZE);
   glPointSize(1);
@@ -189,6 +198,23 @@ void initOpenGL(void)
   MatrixIDView = glGetUniformLocation(programID, "VIEW");
   MatrixIDModel = glGetUniformLocation(programID, "MODEL");
   MatrixIDPerspective = glGetUniformLocation(programID, "PERSPECTIVE");
+
+  dtLocation = glGetUniformLocation(computeProgramID, "dt");
+  gravityLocation = glGetUniformLocation(computeProgramID, "gravity");
+
+  cxLocation = glGetUniformLocation(computeProgramID, "Cx");
+  rhoLocation = glGetUniformLocation(computeProgramID, "rho");
+  sLocation = glGetUniformLocation(computeProgramID, "S");
+
+  particleCountLocation = glGetUniformLocation(computeProgramID, "particleCount");
+
+  cubeMinXLocation = glGetUniformLocation(computeProgramID, "particleContainer.cubeMinX");
+  cubeMaxXLocation = glGetUniformLocation(computeProgramID, "particleContainer.cubeMaxX");
+  cubeMinYLocation = glGetUniformLocation(computeProgramID, "particleContainer.cubeMinY");
+  cubeMaxYLocation = glGetUniformLocation(computeProgramID, "particleContainer.cubeMaxY");
+  cubeMinZLocation = glGetUniformLocation(computeProgramID, "particleContainer.cubeMinZ");
+  cubeMaxZLocation = glGetUniformLocation(computeProgramID, "particleContainer.cubeMaxZ");
+
 
   // Projection matrix : 65 Field of View, 1:1 ratio, display range : 1 unit <-> 1000 units
   // ATTENTIOn l'angle est donné en radians si f GLM_FORCE_RADIANS est défini sinon en degré
@@ -205,46 +231,29 @@ void anim(int NumTimer)
 
     float dt = static_cast<float>(deltaTime.count());
 
-    emitParticules(100);
-
-    // Mettez à jour la physique de chaque particule
-    for (size_t i = 0; i < particles.size(); i++)
-    {
-        vec3 velocity(particles[i].velocity[0],
-                      particles[i].velocity[1],
-                      particles[i].velocity[2]);
-        vec3 pos(particles[i].position[0],
-                 particles[i].position[1],
-                 particles[i].position[2]);
-
-        vec3 F_gravity = particles[i].weight * gravity;
-        float speed = length(velocity);
-        vec3 F_drag = (speed > 0.0f) ? -0.5f * Cx * rho * S * speed * speed * normalize(velocity) : vec3(0.0f);
-        vec3 F_net = F_gravity + F_drag;
-        vec3 acceleration = F_net / particles[i].weight;
-
-        velocity += acceleration * dt;
-        pos += velocity * dt;
-
-        float cubeMinX = particlesContainer.cubeMinX;
-        float cubeMaxX = particlesContainer.cubeMaxX;
-        float cubeMinY = particlesContainer.cubeMinY;
-        float cubeMaxY = particlesContainer.cubeMaxY;
-        float cubeMinZ = particlesContainer.cubeMinZ;
-        float cubeMaxZ = particlesContainer.cubeMaxZ;
-
-        if (pos.x < cubeMinX) { pos.x = cubeMinX; velocity.x = -velocity.x * particles[i].restitution; }
-        else if (pos.x > cubeMaxX) { pos.x = cubeMaxX; velocity.x = -velocity.x * particles[i].restitution; }
-        if (pos.y < cubeMinY) { pos.y = cubeMinY; velocity.y = -velocity.y * particles[i].restitution; }
-        else if (pos.y > cubeMaxY) { pos.y = cubeMaxY; velocity.y = -velocity.y * particles[i].restitution; }
-        if (pos.z < cubeMinZ) { pos.z = cubeMinZ; velocity.z = -velocity.z * particles[i].restitution; }
-        else if (pos.z > cubeMaxZ) { pos.z = cubeMaxZ; velocity.z = -velocity.z * particles[i].restitution; }
-
-        particles[i].velocity = velocity; 
-        particles[i].position = pos;
-    }
+    emitParticles(100);
 
     updateSSBO();
+
+    glUseProgram(computeProgramID);
+
+    glUniform1f(dtLocation, dt);
+    glUniform3f(gravityLocation, 0.0f, 0.0f, -9.91f);
+    glUniform1f(cxLocation, 0.5f);
+    glUniform1f(rhoLocation, 1.2f);
+    glUniform1f(sLocation,  0.01f);
+
+    glUniform1f(cubeMinXLocation, -1.0f); glUniform1f(cubeMaxXLocation, 1.0f);
+    glUniform1f(cubeMinYLocation, -1.0f); glUniform1f(cubeMaxYLocation, 1.0f);
+    glUniform1f(cubeMinZLocation, 0.0f); glUniform1f(cubeMaxZLocation, 2.0f);
+
+    unsigned int N = particles.size();
+    glUniform1ui(particleCountLocation, N);
+
+    GLuint groups = (N + 255) / 256;
+    glDispatchCompute(groups, 1, 1);
+
+    glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
     glutPostRedisplay();
     glutTimerFunc(20, anim, 1);
