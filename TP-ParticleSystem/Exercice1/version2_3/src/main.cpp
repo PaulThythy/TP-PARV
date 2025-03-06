@@ -50,19 +50,6 @@ typedef struct
 
 Emitter emitter = {vec3(0.0f, 0.0f, 1.0f), 3.0f};
 
-typedef struct
-{
-  const float cubeMinX, cubeMaxX;
-  const float cubeMinY, cubeMaxY;
-  const float cubeMinZ, cubeMaxZ;
-} ParticlesContainer;
-
-ParticlesContainer particlesContainer = {
-  -1.0f, 1.0f,
-  -1.0f, 1.0f,
-  0.0f, 2.0f
-};
-
 void anim(int NumTimer);
 
 // initialisations
