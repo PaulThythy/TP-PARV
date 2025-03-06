@@ -37,6 +37,7 @@ struct alignas(16) Particle
   alignas(16) vec3 color;
   alignas(4) float weight;
   alignas(4) float radius;
+  alignas(4) float restitution;
 };
 
 vector<Particle> particles;
@@ -157,6 +158,7 @@ void emitParticules(int nbParticles)
 
     p.weight = 0.01f;
     p.radius = 0.005f; // Ajustez cette valeur selon vos besoins
+    p.restitution = 0.8f;
 
     // Attribution d'une couleur aléatoire
     p.color.x = (float)rand() / (float)RAND_MAX;
@@ -231,19 +233,15 @@ void anim(int NumTimer)
         float cubeMinZ = particlesContainer.cubeMinZ;
         float cubeMaxZ = particlesContainer.cubeMaxZ;
 
-        if (pos.x < cubeMinX) { pos.x = cubeMinX; velocity.x = -velocity.x * restitution; }
-        else if (pos.x > cubeMaxX) { pos.x = cubeMaxX; velocity.x = -velocity.x * restitution; }
-        if (pos.y < cubeMinY) { pos.y = cubeMinY; velocity.y = -velocity.y * restitution; }
-        else if (pos.y > cubeMaxY) { pos.y = cubeMaxY; velocity.y = -velocity.y * restitution; }
-        if (pos.z < cubeMinZ) { pos.z = cubeMinZ; velocity.z = -velocity.z * restitution; }
-        else if (pos.z > cubeMaxZ) { pos.z = cubeMaxZ; velocity.z = -velocity.z * restitution; }
+        if (pos.x < cubeMinX) { pos.x = cubeMinX; velocity.x = -velocity.x * particles[i].restitution; }
+        else if (pos.x > cubeMaxX) { pos.x = cubeMaxX; velocity.x = -velocity.x * particles[i].restitution; }
+        if (pos.y < cubeMinY) { pos.y = cubeMinY; velocity.y = -velocity.y * particles[i].restitution; }
+        else if (pos.y > cubeMaxY) { pos.y = cubeMaxY; velocity.y = -velocity.y * particles[i].restitution; }
+        if (pos.z < cubeMinZ) { pos.z = cubeMinZ; velocity.z = -velocity.z * particles[i].restitution; }
+        else if (pos.z > cubeMaxZ) { pos.z = cubeMaxZ; velocity.z = -velocity.z * particles[i].restitution; }
 
-        particles[i].velocity[0] = velocity.x;
-        particles[i].velocity[1] = velocity.y;
-        particles[i].velocity[2] = velocity.z;
-        particles[i].position[0] = pos.x;
-        particles[i].position[1] = pos.y;
-        particles[i].position[2] = pos.z;
+        particles[i].velocity = velocity;
+        particles[i].position = pos;
     }
 
     updateSSBO();

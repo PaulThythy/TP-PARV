@@ -6,6 +6,7 @@ struct Particule {
     vec3 color;
     float weight;
     float radius;
+    float restitution;
 };
 
 layout(std430, binding = 0) buffer ParticlesBuffer {
