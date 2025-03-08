@@ -1,10 +1,11 @@
 #version 450
 
 struct Particle {
-    vec3 position;
-    vec3 velocity;
-    float weight;
-    int isFixed;
+  vec3 position;
+  vec3 previousPosition;
+  vec3 velocity;
+  float weight;
+  int isFixed;
 };
 
 layout(std430, binding = 0) buffer ParticlesBuffer {

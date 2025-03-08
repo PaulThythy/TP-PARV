@@ -30,10 +30,10 @@
 using namespace glm;
 using namespace std;
 
-struct alignas(16) Particle
-{
-  alignas(16) vec3 position;
-  alignas(16) vec3 velocity;
+struct Particle {
+  alignas(16) glm::vec3 position;
+  alignas(16) glm::vec3 previousPosition;
+  alignas(16) glm::vec3 velocity;
   float weight;
   int isFixed;
 };
@@ -53,6 +53,7 @@ void traceObjet();
 
 // fonctions de rappel de glut
 void affichage();
+void drawAxes();
 void clavier(unsigned char, int, int);
 void mouse(int, int, int, int);
 void mouseMotion(int, int);
@@ -69,12 +70,13 @@ float cameraDistance = 1.;
 
 // constantes pour la simulation
 vec3 gravity = vec3(0.0f, 0.0f, -9.91f);
-float springConstant = 0.5f;              // Constante de ressort (k)
-float restLength = 0.05f;                 // Longueur de repos (espacement initial)
-vec3 windForce = vec3(1.0f, 0.0f, 0.0f);  // Force du vent (à ajuster)
+float springConstant = 200.0f;              // Constante de ressort (k)
+float restLength = 0.5f;                 // Longueur de repos (espacement initial)
+vec3 windForce = vec3(10.0f, 5.0f, 0.0f);  // Force du vent (à ajuster)
+float damping = 5.0f;
 
-const int NX = 50;
-const int NY = 30;
+const int NX = 20;
+const int NY = 20;
 const int TOTAL_PARTICLES = NX * NY;
 
 // variables Handle d'opengl
@@ -87,10 +89,11 @@ GLuint ssboParticles;
 GLint dtLocation, gravityLocation;
 GLint NXLocation, NYLocation;
 GLint kLocation, restLengthLocation, windLocation;
+GLint dampingLocation;
 
 // variable pour paramétrage eclairage
 //--------------------------------------
-vec3 cameraPosition(5., 0., 0.);
+vec3 cameraPosition(0.0f, -10.0f, 0.5f);
 // le matériau
 //---------------
 GLfloat materialShininess = 3.;
@@ -108,6 +111,45 @@ glm::mat4 Model, View, Projection; // Matrices constituant MVP
 int screenHeight = 1500;
 int screenWidth = 1500;
 
+void drawAxes() {
+  glUseProgram(0);
+
+  glMatrixMode(GL_PROJECTION);
+  glPushMatrix();
+  glLoadMatrixf(&Projection[0][0]);
+
+  glMatrixMode(GL_MODELVIEW);
+  glPushMatrix();
+  glm::mat4 modelView = View * Model;
+  glLoadMatrixf(&modelView[0][0]);
+
+  // Dessiner les axes
+  glLineWidth(2.0f);
+  glBegin(GL_LINES);
+    // Axe X en rouge
+    glColor3f(1.0f, 0.0f, 0.0f);
+    glVertex3f(0.0f, 0.0f, 0.0f);
+    glVertex3f(1.0f, 0.0f, 0.0f);
+    
+    // Axe Y en vert
+    glColor3f(0.0f, 1.0f, 0.0f);
+    glVertex3f(0.0f, 0.0f, 0.0f);
+    glVertex3f(0.0f, 1.0f, 0.0f);
+    
+    // Axe Z en bleu
+    glColor3f(0.0f, 0.0f, 1.0f);
+    glVertex3f(0.0f, 0.0f, 0.0f);
+    glVertex3f(0.0f, 0.0f, 1.0f);
+  glEnd();
+
+  // Restaurer les matrices précédentes
+  glPopMatrix();
+  glMatrixMode(GL_PROJECTION);
+  glPopMatrix();
+  glMatrixMode(GL_MODELVIEW);
+}
+
+
 //-------------------------
 void initFlag()
 {
@@ -118,11 +160,11 @@ void initFlag()
     {
       int idx = i * NX + j;
       Particle &p = particles[idx];
-      // Position initiale : on place la grille dans le plan XY (ici, X augmente vers la droite, Y décroît vers le bas)
-      p.position = vec3(j * restLength, 0.0f, -i * restLength);
+      p.position = vec3(0.0f, j * restLength, i * restLength);
+      p.previousPosition = p.position;
       p.velocity = vec3(0.0f);
       p.weight = 1.0f;
-      p.isFixed = (i == 0) ? 1 : 0; // La rangée supérieure (i==0) est fixée
+      p.isFixed = (j == 0) ? 1 : 0;
     }
   }
 }
@@ -170,7 +212,7 @@ void initOpenGL(void)
 //----------------------------------------
 {
   glCullFace(GL_BACK);    // on spécifie queil faut éliminer les face arriere
-  glEnable(GL_CULL_FACE); // on active l'élimination des faces qui par défaut n'est pas active
+  glDisable(GL_CULL_FACE); // on active l'élimination des faces qui par défaut n'est pas active
   glEnable(GL_DEPTH_TEST);
   // le shader
   programID = LoadShaders("shaders/vertex.vert", "shaders/fragment.frag");
@@ -197,6 +239,7 @@ void initOpenGL(void)
   kLocation = glGetUniformLocation(computeProgramID, "k");
   restLengthLocation = glGetUniformLocation(computeProgramID, "restLength");
   windLocation = glGetUniformLocation(computeProgramID, "wind");
+  dampingLocation = glGetUniformLocation(computeProgramID, "damping");
 
   // Projection matrix : 65 Field of View, 1:1 ratio, display range : 1 unit <-> 1000 units
   // ATTENTIOn l'angle est donné en radians si f GLM_FORCE_RADIANS est défini sinon en degré
@@ -223,6 +266,7 @@ void anim(int NumTimer)
   glUniform1f(kLocation, springConstant);
   glUniform1f(restLengthLocation, restLength);
   glUniform3f(windLocation, windForce.x, windForce.y, windForce.z);
+  glUniform1f(dampingLocation, damping);
 
   GLuint groups = (TOTAL_PARTICLES + 255) / 256;
   glDispatchCompute(groups, 1, 1);
@@ -308,7 +352,7 @@ void affichage()
   glPointSize(2.0);
 
   View = glm::lookAt(cameraPosition,     // Camera is at (0,0,3), in World Space
-                     glm::vec3(0, 0, 1), // and looks at the origin
+                     glm::vec3(0, 0, 0), // and looks at the origin
                      glm::vec3(0, 0, 1)  // Head is up (set to 0,-1,0 to look upside-down)
   );
   Model = glm::mat4(1.0f);
@@ -317,6 +361,8 @@ void affichage()
   Model = glm::scale(Model, glm::vec3(.8, .8, .8) * cameraDistance);
   MVP = Projection * View * Model;
   traceObjet(); // trace VBO avec ou sans shader
+
+  drawAxes();
 
   glutPostRedisplay();
   glutSwapBuffers();
@@ -336,6 +382,7 @@ void traceObjet()
   glUniformMatrix4fv(MatrixIDPerspective, 1, GL_FALSE, &Projection[0][0]);
 
   glBindVertexArray(vaoID);
+  glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
   glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0);
   glBindVertexArray(0);
   

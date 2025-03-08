@@ -3,11 +3,13 @@
 layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 
 struct Particle {
-    vec3 position;
-    vec3 velocity;
-    float weight;
-    int isFixed;
+  vec3 position;
+  vec3 previousPosition;
+  vec3 velocity;
+  float weight;
+  int isFixed;
 };
+
 
 layout(std430, binding = 0) buffer ParticlesBuffer {
     Particle particles[];
@@ -17,9 +19,10 @@ uniform float dt;
 uniform vec3 gravity;
 uniform int NX;
 uniform int NY;
-uniform float k;           // Constante de ressort
-uniform float restLength;  // Longueur de repos des ressorts
-uniform vec3 wind;         // Force du vent
+uniform float k;            // Constante de ressort
+uniform float restLength;   // Longueur de repos des ressorts
+uniform vec3 wind;          // Force du vent
+uniform float damping;      // Amortissement
 
 int index(int i, int j) {
     return i * NX + j;
@@ -90,15 +93,27 @@ void main() {
         }
     }
     
-    // Damping (amortissement)
-    float damping = 1.0;
     force += -damping * p.velocity;
     
     vec3 accel = force / p.weight;
+
+    // On limite dt pour plus de stabilité
+    float dtClamped = min(dt, 0.01);
+    float dt2 = dtClamped * dtClamped;
+
+    vec3 oldPosition = p.position;
+    vec3 newPos = 2.0 * p.position - p.previousPosition + accel * dt2;
     
-    // Mise à jour de la vitesse et de la position
-    p.velocity += accel * dt;
-    p.position += p.velocity * dt;
+    vec3 newVelocity = (newPos - oldPosition) / dt;
+
+    // pour éviter les tremblements quand le système se stabilise
+    if (length(newVelocity) < 0.1) {
+        newVelocity = vec3(0.0);
+    }
+
+    p.previousPosition = oldPosition;
+    p.position = newPos;
+    p.velocity = newVelocity;
     
     particles[idx] = p;
 }
